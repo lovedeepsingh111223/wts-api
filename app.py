@@ -261,14 +261,10 @@ def delete_contact(phone_number):
         if conn:
             conn.close()
 
-@app.route("/")
-def home():
-    return "Server is running!"
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-    
+
 # Ab, yeh API routes `app.py` mein jodein
 
 @app.route('/api/contacts', methods=['GET', 'POST'])
@@ -328,6 +324,10 @@ def check_authentication():
 @app.route('/')
 def home():
     return redirect(url_for('dashboard'))
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -532,18 +532,18 @@ def webhook():
     return 'EVENT_RECEIVED', 200
 
 # ✅ Sudhara gaya: ab sirf ek hi block hai
+# ✅ Sudhara gaya: ab sirf ek hi block hai
 if __name__ == '__main__':
-    # Yeh line database ko banayegi, isko sirf ek baar chalaana hai
-    # Iske chalne ke baad, iske aage # laga kar comment kar dein
-    # setup_database() 
+    # Create the database table
+    setup_database()
 
     # Ensure messages.json exists or is created as an empty dict
-  if __name__ == '__main__':
-    # Add this line to create the database table
-    setup_database()  
-    
     if not os.path.exists(MESSAGES_FILE):
         with open(MESSAGES_FILE, 'w') as f:
             json.dump({}, f)
-            
-    app.run(debug=True)
+
+    # Render port binding
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+
+
