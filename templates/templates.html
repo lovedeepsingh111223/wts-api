@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="p-6 md:p-10 bg-gray-100 min-h-[75vh] -m-6 md:-m-8">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Approved Templates</h1>
+        <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Create New</button>
+    </div>
+    
+    <div class="bg-white p-6 rounded-2xl shadow-xl space-y-4 max-h-[70vh] overflow-y-auto">
+        {% if templates %}
+            {% for template in templates %}
+            <div class="flex items-start gap-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                <div class="flex-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-800 text-lg">{{ template.name }}</h3>
+                        <div class="flex items-center gap-2">
+                            {% if template.status == 'APPROVED' %}
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">APPROVED</span>
+                            {% elif template.status == 'PENDING' %}
+                                <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">PENDING</span>
+                            {% else %}
+                                <span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded-full">REJECTED</span>
+                            {% endif %}
+                            <p class="text-sm text-gray-500 font-mono">{{ template.language }}</p>
+                        </div>
+                    </div>
+                    <div class="text-gray-600 text-sm mt-2">
+                        <p class="font-medium">Category: <span class="font-normal">{{ template.category }}</span></p>
+                        <p class="font-medium mt-1">Components:</p>
+                        <ul class="list-disc list-inside ml-4">
+                            {% for component in template.components %}
+                                <li class="text-xs">{{ component.type | capitalize }} - {{ component.text }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-gray-500 text-center py-10">No templates found. Please create them in your Meta dashboard.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

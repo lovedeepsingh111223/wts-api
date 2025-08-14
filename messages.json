@@ -1,0 +1,18 @@
+{
+  "16315551181": [
+    {
+      "id": "1",
+      "text": "this is a text message",
+      "timestamp": "2025-07-17T17:21:52.868355",
+      "isFromMe": false,
+      "type": "text"
+    },
+    {
+      "id": "2",
+      "text": "hllo",
+      "timestamp": "2025-07-17T17:25:27.695967",
+      "isFromMe": true,
+      "type": "text"
+    }
+  ]
+}

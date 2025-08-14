@@ -1,0 +1,14 @@
+<style>
+    /* Add some basic styling for the form here */
+    body { font-family: sans-serif; margin: 0; padding: 15px; }
+    input[type="text"] { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+    input[type="submit"] { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
+</style>
+
+<form action="https://your_ngrok_url.ngrok-free.app/form-submission" method="post">
+    <label for="user_name">Name:</label><br>
+    <input type="text" id="user_name" name="user_name" required><br>
+    <label for="phone_number">Phone Number (with country code):</label><br>
+    <input type="text" id="phone_number" name="phone_number" required><br><br>
+    <input type="submit" value="Join WhatsApp List">
+</form>

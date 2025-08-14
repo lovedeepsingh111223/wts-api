@@ -1,0 +1,177 @@
+[
+  {
+    "timestamp": "2025-07-17T16:13:23.599696",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-17T16:29:22.882506",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 401 Client Error: Unauthorized for url: https://graph.facebook.com/v19.0/YOUR_PHONE_ID/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T17:01:30.038626",
+    "type": "INFO",
+    "message": "\u2705 Webhook verified successfully!"
+  },
+  {
+    "timestamp": "2025-07-17T17:08:13.145161",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-17T17:14:22.826785",
+    "type": "INFO",
+    "message": "\u2705 Webhook verified successfully!"
+  },
+  {
+    "timestamp": "2025-07-17T17:21:52.865837",
+    "type": "INFO",
+    "message": "Received webhook: {\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"0\", \"changes\": [{\"field\": \"messages\", \"value\": {\"messaging_product\": \"whatsapp\", \"metadata\": {\"display_phone_number\": \"16505551111\", \"phone_number_id\": \"123456123\"}, \"contacts\": [{\"profile\": {\"name\": \"test user name\"}, \"wa_id\": \"16315551181\"}], \"messages\": [{\"from\": \"16315551181\", \"id\": \"ABGGFlA5Fpa\", \"timestamp\": \"1504902988\", \"type\": \"text\", \"text\": {\"body\": \"this is a text message\"}}]}}]}]}"
+  },
+  {
+    "timestamp": "2025-07-17T17:21:52.869598",
+    "type": "INFO",
+    "message": "Chat message saved for 16315551181: -> Me this is a text message..."
+  },
+  {
+    "timestamp": "2025-07-17T17:21:52.896757",
+    "type": "INFO",
+    "message": "Incoming text message from 16315551181: this is a text message..."
+  },
+  {
+    "timestamp": "2025-07-17T17:25:27.693066",
+    "type": "INFO",
+    "message": "\u2705 Text message sent to 16315551181: hllo..."
+  },
+  {
+    "timestamp": "2025-07-17T17:25:27.696603",
+    "type": "INFO",
+    "message": "Chat message saved for 16315551181: Me -> hllo..."
+  },
+  {
+    "timestamp": "2025-07-17T17:29:45.438105",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:16:27.842765",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:17:02.350989",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:33:13.284482",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:37:21.886350",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-17T21:46:15.978577",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:51:11.611719",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:56:18.200855",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:56:21.374946",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:57:15.545442",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:57:27.631048",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T21:57:59.475293",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:00:41.272448",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:00:44.855788",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:00:48.463132",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:01:35.235076",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:01:40.868372",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-17T22:16:33.972513",
+    "type": "ERROR",
+    "message": "\u274c Failed to fetch templates: 400 Client Error: Bad Request for url: https://graph.facebook.com/v19.0/768213309698181/message_templates"
+  },
+  {
+    "timestamp": "2025-07-18T08:44:45.273061",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-18T17:34:07.818004",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-25T12:19:44.537772",
+    "type": "WARNING",
+    "message": "\u274c Failed login attempt for user 'admin'"
+  },
+  {
+    "timestamp": "2025-07-25T12:20:11.776865",
+    "type": "WARNING",
+    "message": "\u274c Failed login attempt for user 'iamlovedeep0023@gmail.com'"
+  },
+  {
+    "timestamp": "2025-07-25T12:21:22.971634",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-07-28T09:25:31.955253",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  },
+  {
+    "timestamp": "2025-08-14T17:00:33.702013",
+    "type": "INFO",
+    "message": "User 'admin' logged in successfully."
+  }
+]

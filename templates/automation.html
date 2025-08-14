@@ -1,0 +1,1942 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Funnel Designer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Important: Override body styles as they are set in the base_crm.html */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Main container should not have min-h-screen as it's within the main content block */
+        .main-container {
+            display: flex; /* Keep flex for its internal layout */
+            flex-direction: column;
+            height: 100%; /* Fill the available height of its parent */
+            font-sans antialiased text-gray-900 relative overflow-hidden; /* Retain text and overflow */
+            background: none; /* Remove background as it's in the base */
+            color: initial; /* Inherit text color from parent for dark mode consistency */
+        }
+
+        .header-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            font-weight: 600;
+            gap: 6px;
+        }
+        .header-btn:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .header-btn:active {
+            transform: translateY(0);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header-btn-text {
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .funnel-step {
+            width: 100%;
+            max-width: 650px;
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            cursor: grab;
+            user-select: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+            margin: 24px 0;
+            position: relative;
+        }
+        .funnel-step:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+            border-color: #3b82f6;
+        }
+        .funnel-step.dragging {
+            transform: scale(1.05);
+            z-index: 20;
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+            cursor: grabbing;
+        }
+        .funnel-step.selected {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 12px 20px rgba(0, 0, 0, 0.1);
+        }
+        .funnel-step.border-red-500 {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+        }
+
+        .connection-line {
+            position: absolute;
+            width: 4px;
+            height: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(to bottom, #3b82f6, #94a3b8);
+            border-radius: 4px;
+        }
+        .connection-line.top {
+            top: -30px;
+        }
+        .connection-line.bottom {
+            bottom: -30px;
+        }
+        .connection-line.bottom::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #3b82f6;
+        }
+
+        .properties-panel {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-input, .form-textarea, .form-select {
+            background-color: #f1f5f9;
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+            border-radius: 10px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            outline: none;
+        }
+
+        .btn-add-condition {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            padding: 0.75rem;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-add-condition:hover {
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        .btn-add-condition:active {
+            background: linear-gradient(90deg, #1d4ed8, #1e40af);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            background: linear-gradient(to right, #f8fafc, #ffffff);
+            border-radius: 16px 16px 0 0;
+        }
+        .step-content {
+            padding: 16px;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        .flowchart-node {
+            width: 200px;
+            padding: 10px;
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            position: absolute;
+            cursor: move;
+        }
+        .flowchart-node:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Dark Mode adjustments for the funnel designer components */
+        body.dark-mode .main-container {
+            background: none; /* Ensure no background conflicts */
+        }
+        body.dark-mode .header-btn {
+            background-color: #374151;
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        body.dark-mode .header-btn:hover {
+            background-color: #4b5563;
+        }
+        body.dark-mode .funnel-step, body.dark-mode .flowchart-node {
+            background: linear-gradient(145deg, #374151, #1e293b);
+            border-color: #4b5563;
+            color: #e2e8f0; /* Ensure text is visible in dark mode */
+        }
+        body.dark-mode .funnel-step:hover, body.dark-mode .flowchart-node:hover {
+            border-color: #60a5fa;
+        }
+        body.dark-mode .properties-panel {
+            background: #1e293b;
+            border-color: #4b5563;
+            color: #e2e8f0; /* Ensure text is visible in dark mode */
+        }
+        body.dark-mode .properties-panel h3 {
+            color: #e2e8f0; /* Ensure text is visible in dark mode */
+        }
+        body.dark-mode .form-input,
+        body.dark-mode .form-textarea,
+        body.dark-mode .form-select {
+            background-color: #4b5563;
+            border-color: #6b7280;
+            color: #e2e8f0;
+        }
+        body.dark-mode .form-input::placeholder,
+        body.dark-mode .form-textarea::placeholder {
+            color: #a0aec0; /* Lighter placeholder text */
+        }
+
+        body.dark-mode .step-header {
+            background: linear-gradient(to right, #4b5563, #374151);
+            border-color: #6b7280;
+        }
+        body.dark-mode .step-header .text-gray-500 {
+            color: #cbd5e1; /* Lighter grey for subtext in dark mode */
+        }
+        body.dark-mode .step-content {
+            color: #cbd5e1; /* Lighter grey for content in dark mode */
+        }
+        body.dark-mode .btn-add-condition {
+            background: linear-gradient(90deg, #60a5fa, #3b82f6);
+        }
+        body.dark-mode .btn-add-condition:hover {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+        body.dark-mode .text-gray-700 { /* Labels in properties panel */
+            color: #cbd5e1;
+        }
+        body.dark-mode .text-gray-500 { /* Small helper text */
+            color: #94a3b8;
+        }
+        body.dark-mode .bg-white { /* Ensure nested white backgrounds adjust */
+            background-color: #374151;
+        }
+        body.dark-mode .bg-gray-50 {
+            background-color: #1f2937;
+        }
+        body.dark-mode .border-gray-200 {
+            border-color: #4b5563;
+        }
+        body.dark-mode .divide-gray-200 {
+            border-color: #4b5563;
+        }
+        body.dark-mode .bg-gray-50 thead { /* Table header */
+            background-color: #1f2937;
+        }
+        body.dark-mode .text-gray-900 {
+            color: #e2e8f0;
+        }
+        body.dark-mode .text-gray-800 {
+            color: #f1f5f9;
+        }
+        body.dark-mode .hover\:bg-gray-100:hover {
+            background-color: #334155;
+        }
+
+        /* For JsPlumb Overlays */
+        body.dark-mode .flowchart-label {
+            background-color: #4a5568 !important; /* Darker background for labels */
+            color: #e2e8f0 !important; /* Lighter text for labels */
+            border: 1px solid #6b7280;
+        }
+
+        /* Modals */
+        body.dark-mode #preview-modal > div,
+        body.dark-mode #analytics-modal > div {
+            background-color: #1e293b;
+            color: #e2e8f0;
+        }
+        body.dark-mode .bg-blue-50 {
+            background-color: #374151;
+            border-color: #4b5563;
+        }
+        body.dark-mode .text-blue-800 {
+            color: #93c5fd;
+        }
+        body.dark-mode table {
+            color: #e2e8f0;
+        }
+        body.dark-mode .text-gray-500 {
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-blue-50 min-h-screen">
+    <div class="main-container relative overflow-hidden">
+        <div class="absolute inset-0 z-0 opacity-20" style="background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 20%), radial-gradient(circle at 80% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 20%), radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.1) 0%, transparent 20%);"></div>
+
+        <header id="header" class="relative bg-white/90 backdrop-blur-xl px-8 py-5 flex items-center justify-between shadow-md z-50 border-b border-gray-200 transition-all duration-300">
+            <div class="flex items-center gap-5">
+                <span class="text-blue-600 drop-shadow-md transition-transform duration-300 hover:scale-110">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" viewBox="0 0 24 24" fill="currentColor"><path d="M11 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h3zm7 0a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h3zm-9 9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3zm7 0a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3z"></path></svg>
+                </span>
+                <span class="text-2xl font-bold text-gray-800 tracking-tight">Modern Funnel Designer</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="addNode('trigger')" class="header-btn bg-blue-600 text-white hover:bg-blue-700" title="Add Trigger Node">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.93 6.07a.99.99 0 0 1 0 1.41L11.41 14.1a.99.99 0 0 1-1.41 0L8.07 12.57a1 1 0 0 1 1.41-1.41l1.24 1.24 3.25-3.25a1 1 0 0 1 1.4.01z"></path></svg>
+                    <span class="header-btn-text">Trigger</span>
+                </button>
+                <button onclick="addNode('message')" class="header-btn bg-green-600 text-white hover:bg-green-700" title="Add Message Node">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <span class="header-btn-text">Message</span>
+                </button>
+                <button onclick="addNode('wait_until')" class="header-btn bg-amber-500 text-gray-900 hover:bg-amber-600" title="Add Wait Until Node">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm.1 14.93a1 1 0 0 1-1-1v-4a1 1 0 0 1 2 0v4a1 1 0 0 1-1 1zm-3.66-8.54a1 1 0 0 1 1.41 0l3.66 3.66a1 1 0 0 1-1.41 1.41L8.85 9.79a1 1 0 0 1 0-1.41zm1.41 1.41a1 1 0 0 1 0 1.41l-3.66 3.66a1 1 0 0 1-1.41-1.41l3.66-3.66a1 1 0 0 1 1.41 0z"></path></svg>
+                    <span class="header-btn-text">Wait</span>
+                </button>
+                <button onclick="addNode('conditional_branch')" class="header-btn bg-purple-600 text-white hover:bg-purple-700" title="Add Conditional Branch Node">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zM9 16a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1zm5 0a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1zm-2-7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1z"></path></svg>
+                    <span class="header-btn-text">Branch</span>
+                </button>
+                <button onclick="addNode('api')" class="header-btn bg-red-600 text-white hover:bg-red-700" title="Add API Call Node">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM4 6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM14 14a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM4 14a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path></svg>
+                    <span class="header-btn-text">API</span>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <input type="text" id="search-nodes" class="form-input w-64" placeholder="Search nodes...">
+                <button onclick="toggleView()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Toggle View">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                    <span class="header-btn-text">View</span>
+                </button>
+                <button onclick="undo()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Undo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l-4-4m0 0l4-4m-4 4h12" /></svg>
+                    <span class="header-btn-text">Undo</span>
+                </button>
+                <button onclick="redo()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Redo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10l4 4m0 0l-4 4m4-4H4" /></svg>
+                    <span class="header-btn-text">Redo</span>
+                </button>
+                <button onclick="saveFunnel()" class="header-btn bg-blue-600 text-white hover:bg-blue-700" title="Save Funnel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    <span class="header-btn-text">Save</span>
+                </button>
+                <button onclick="loadFunnel()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Load Funnel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                    <span class="header-btn-text">Load</span>
+                </button>
+                <button onclick="exportFunnel()" class="header-btn bg-green-600 text-white hover:bg-green-700" title="Export Funnel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="header-btn-text">Export</span>
+                </button>
+                <button onclick="importFunnel()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Import Funnel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h6v6m-6-6v-3m6 3h3m-3-3v-3m-3 3H6" />
+                    </svg>
+                    <span class="header-btn-text">Import</span>
+                </button>
+                <button onclick="openPreview()" class="header-btn bg-yellow-500 text-gray-900 hover:bg-yellow-600" title="Preview Funnel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 6.627-5.373 12-12 12S-3 18.627-3 12 2.373 0 9 0s12 5.373 12 12z" />
+                    </svg>
+                    <span class="header-btn-text">Preview</span>
+                </button>
+                <button onclick="viewAnalytics()" class="header-btn bg-teal-600 text-white hover:bg-teal-700" title="View Analytics">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span class="header-btn-text">Analytics</span>
+                </button>
+                <button onclick="toggleDarkMode()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Toggle Dark Mode">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003, 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span class="header-btn-text">Dark Mode</span>
+                </button>
+                <select onchange="setLanguage(this.value)" class="form-select w-32">
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                </select>
+                <button onclick="showShortcuts()" class="header-btn bg-gray-200 text-gray-800 hover:bg-gray-300" title="Keyboard Shortcuts">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                    </svg>
+                    <span class="header-btn-text">Help</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex relative z-10 overflow-hidden">
+            <div id="funnel-list-container" class="flex-1 relative p-10 overflow-y-auto">
+                <div id="funnel-steps-list" class="flex flex-col items-center"></div>
+            </div>
+            <div id="flowchart-view" class="hidden flex-1 relative p-10 overflow-y-auto"></div>
+            <div id="properties-panel" class="w-[400px] bg-white/95 backdrop-blur-2xl shadow-2xl z-50 p-8 border-l border-gray-200 rounded-tl-2xl transform transition-transform duration-400 overflow-y-auto translate-x-full">
+                <div class="flex justify-between items-center pb-5 border-b border-gray-200">
+                    <h3 class="text-2xl font-semibold text-gray-900 tracking-tight">Node Properties</h3>
+                    <button onclick="closePropertiesPanel()" class="text-gray-500 hover:text-gray-900 p-2 rounded-full transition-colors hover:bg-gray-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div id="panel-content" class="mt-6 space-y-6"></div>
+            </div>
+        </div>
+
+        <div id="preview-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-2xl p-8 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Funnel Preview</h3>
+                    <button onclick="closePreview()" class="text-gray-500 hover:text-gray-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="preview-content" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <div id="analytics-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Funnel Analytics</h3>
+                    <button onclick="closeAnalytics()" class="text-gray-500 hover:text-gray-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="analytics-content" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Translations ---
+        const translations = {
+            en: {
+                title: 'Modern Funnel Designer',
+                trigger: 'Trigger',
+                message: 'Message',
+                wait: 'Wait',
+                branch: 'Branch',
+                api: 'API',
+                undo: 'Undo',
+                redo: 'Redo',
+                save: 'Save',
+                load: 'Load',
+                export: 'Export',
+                import: 'Import',
+                preview: 'Preview',
+                analytics: 'Analytics',
+                dark_mode: 'Dark Mode',
+                help: 'Help',
+                node_properties: 'Node Properties',
+                edit_node: 'Edit {type} Node',
+                delete_node: 'Delete Node',
+                add_button: '+ Add Button',
+                add_condition: '+ Add Condition'
+            },
+            es: {
+                title: 'Diseñador de Embudo Moderno',
+                trigger: 'Desencadenante',
+                message: 'Mensaje',
+                wait: 'Esperar',
+                branch: 'Rama',
+                api: 'API',
+                undo: 'Deshacer',
+                redo: 'Rehacer',
+                save: 'Guardar',
+                load: 'Cargar',
+                export: 'Exportar',
+                import: 'Importar',
+                preview: 'Vista previa',
+                analytics: 'Analíticas',
+                dark_mode: 'Modo Oscuro',
+                help: 'Ayuda',
+                node_properties: 'Propiedades del Nodo',
+                edit_node: 'Editar Nodo {type}',
+                delete_node: 'Eliminar Nodo',
+                add_button: '+ Agregar Botón',
+                add_condition: '+ Agregar Condición'
+            }
+        };
+
+        let currentLanguage = localStorage.getItem('language') || 'en';
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            updateUIText();
+        }
+
+        function updateUIText() {
+            // Update specific elements within the funnel designer content
+            document.querySelector('title').textContent = translations[currentLanguage].title;
+            document.querySelector('.text-2xl.font-bold').textContent = translations[currentLanguage].title;
+            document.querySelectorAll('.header-btn').forEach(btn => {
+                const textElement = btn.querySelector('.header-btn-text');
+                if (textElement) {
+                    const text = textElement.textContent.toLowerCase();
+                    if (text === 'trigger') textElement.textContent = translations[currentLanguage].trigger;
+                    else if (text === 'message') textElement.textContent = translations[currentLanguage].message;
+                    else if (text === 'wait') textElement.textContent = translations[currentLanguage].wait;
+                    else if (text === 'branch') textElement.textContent = translations[currentLanguage].branch;
+                    else if (text === 'api') textElement.textContent = translations[currentLanguage].api;
+                    else if (text === 'view') textElement.textContent = translations[currentLanguage].view || 'View';
+                    else if (text === 'undo') textElement.textContent = translations[currentLanguage].undo;
+                    else if (text === 'redo') textElement.textContent = translations[currentLanguage].redo;
+                    else if (text === 'save') textElement.textContent = translations[currentLanguage].save;
+                    else if (text === 'load') textElement.textContent = translations[currentLanguage].load;
+                    else if (text === 'export') textElement.textContent = translations[currentLanguage].export;
+                    else if (text === 'import') textElement.textContent = translations[currentLanguage].import;
+                    else if (text === 'preview') textElement.textContent = translations[currentLanguage].preview;
+                    else if (text === 'analytics') textElement.textContent = translations[currentLanguage].analytics;
+                    else if (text === 'dark mode') textElement.textContent = translations[currentLanguage].dark_mode;
+                    else if (text === 'help') textElement.textContent = translations[currentLanguage].help;
+                }
+            });
+            document.querySelector('.properties-panel h3').textContent = translations[currentLanguage].node_properties;
+            document.querySelector('#preview-modal h3').textContent = translations[currentLanguage].preview + ' Funnel';
+            document.querySelector('#analytics-modal h3').textContent = translations[currentLanguage].analytics + ' Funnel';
+
+            renderFunnel();
+            if (isFlowchartView) {
+                renderFlowchart();
+            }
+            if (selectedNodeId) {
+                openPropertiesPanel(selectedNodeId);
+            }
+        }
+
+        // --- Core Data Model ---
+        let funnelData = { steps: [] };
+        let stepIdCounter = 0;
+        let selectedNodeId = null;
+        let isFlowchartView = false;
+
+        // --- UI Elements ---
+        const funnelListContainer = document.getElementById('funnel-list-container');
+        const funnelList = document.getElementById('funnel-steps-list');
+        const flowchartView = document.getElementById('flowchart-view');
+        const propertiesPanel = document.getElementById('properties-panel');
+        const panelContent = document.getElementById('panel-content');
+
+        // --- Undo/Redo ---
+        const history = [];
+        let historyIndex = -1;
+
+        function saveState() {
+            if (historyIndex < history.length - 1) {
+                history.splice(historyIndex + 1);
+            }
+            history.push(JSON.stringify(funnelData));
+            historyIndex++;
+            console.log('State saved. History length:', history.length);
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                funnelData = JSON.parse(history[historyIndex]);
+                selectedNodeId = null;
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+                closePropertiesPanel();
+                console.log('Undo performed. History index:', historyIndex);
+            } else {
+                console.log('Nothing to undo.');
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                funnelData = JSON.parse(history[historyIndex]);
+                selectedNodeId = null;
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+                closePropertiesPanel();
+                console.log('Redo performed. History index:', historyIndex);
+            } else {
+                console.log('Nothing to redo.');
+            }
+        }
+
+        // --- Validation ---
+        function validateStep(step) {
+            const errors = [];
+            if (!step.name || step.name.trim() === '') {
+                errors.push('Node name cannot be empty.');
+            }
+
+            if (step.type === 'trigger') {
+                if (!step.properties.buttons?.length && !step.properties.keywords && !step.properties.defaultPathId) {
+                    errors.push('Trigger node must have at least one button, keyword, or default path defined.');
+                }
+                const keywords = step.properties.keywords?.split(',').map(k => k.trim()).filter(Boolean) || [];
+                keywords.forEach(kw => {
+                    if (!step.properties[`keyword_${kw}`]) {
+                        errors.push(`Keyword "${kw}" is missing a target path.`);
+                    }
+                });
+                if (step.properties.buttons) {
+                    step.properties.buttons.forEach((button, btnIndex) => {
+                        if (!button.text || button.text.trim() === '') {
+                            errors.push(`Button ${btnIndex + 1} text cannot be empty.`);
+                        }
+                        if (!button.targetId) {
+                            errors.push(`Button "${button.text}" is missing a target node.`);
+                        }
+                    });
+                }
+            } else if (step.type === 'message' && (!step.properties.templateId || step.properties.templateId === '')) {
+                errors.push('Message node must have a selected template.');
+            } else if (step.type === 'api') {
+                if (!step.properties.method || step.properties.method === '') {
+                    errors.push('API node must have a method.');
+                }
+                if (!step.properties.url || step.properties.url.trim() === '') {
+                    errors.push('API node must have a URL.');
+                }
+                try {
+                    if (step.properties.headers && step.properties.headers.trim() !== '') {
+                        JSON.parse(step.properties.headers);
+                    }
+                } catch (e) {
+                    errors.push('API headers must be valid JSON.');
+                }
+                try {
+                    if (step.properties.body && step.properties.body.trim() !== '') {
+                        JSON.parse(step.properties.body);
+                    }
+                } catch (e) {
+                    errors.push('API body must be valid JSON.');
+                }
+            } else if (step.type === 'wait_until') {
+                if (!step.properties.waitType || step.properties.waitType === '') {
+                    errors.push('Wait Until node must have a wait type selected.');
+                }
+                if (step.properties.waitType === 'duration' && (!step.properties.duration || isNaN(parseInt(step.properties.duration)))) {
+                    errors.push('Duration must be a number.');
+                }
+                if (step.properties.waitType === 'date_time' && (!step.properties.targetDateTime || step.properties.targetDateTime.trim() === '')) {
+                    errors.push('Target Date/Time cannot be empty.');
+                }
+                if (!step.properties.nextStepId) {
+                    errors.push('Wait Until node must have a next step defined.');
+                }
+            } else if (step.type === 'conditional_branch') {
+                if (!step.properties.conditions?.length && !step.properties.fallbackId) {
+                    errors.push('Conditional branch must have at least one condition or a fallback path.');
+                }
+                if (step.properties.conditions) {
+                    step.properties.conditions.forEach((condition, condIndex) => {
+                        if (!condition.variable || condition.variable.trim() === '') {
+                            errors.push(`Condition ${condIndex + 1}: Variable cannot be empty.`);
+                        }
+                        if (!condition.operator || condition.operator.trim() === '') {
+                            errors.push(`Condition ${condIndex + 1}: Operator cannot be empty.`);
+                        }
+                        if (!condition.value || condition.value.trim() === '') {
+                            errors.push(`Condition ${condIndex + 1}: Value cannot be empty.`);
+                        }
+                        if (!condition.targetId) {
+                            errors.push(`Condition ${condIndex + 1}: Missing a target node.`);
+                        }
+                    });
+                }
+            }
+            return errors;
+        }
+
+        function validateFunnel() {
+            const allErrors = [];
+            funnelData.steps.forEach(step => {
+                const errors = validateStep(step);
+                if (errors.length) {
+                    allErrors.push({ stepId: step.id, errors });
+                }
+            });
+            return allErrors;
+        }
+
+        // --- UI Rendering Functions ---
+        function renderFunnel(filteredSteps = funnelData.steps) {
+            funnelList.innerHTML = '';
+            const allFunnelErrors = validateFunnel();
+
+            filteredSteps.forEach((stepData, index) => {
+                const stepEl = document.createElement('div');
+                stepEl.className = 'funnel-step';
+                stepEl.id = stepData.id;
+                stepEl.dataset.index = index;
+                stepEl.draggable = true;
+
+                if (selectedNodeId === stepData.id) {
+                    stepEl.classList.add('selected');
+                }
+                const stepErrors = allFunnelErrors.find(err => err.stepId === stepData.id);
+                if (stepErrors) {
+                    stepEl.classList.add('border-red-500');
+                    stepEl.title = 'This node has configuration errors:\n' + stepErrors.errors.join('\n');
+                } else {
+                    stepEl.classList.remove('border-red-500');
+                    stepEl.title = '';
+                }
+
+                const headerHtml = renderNodeHeader(stepData.type, stepData.name);
+                const contentHtml = renderNodeContent(stepData);
+
+                stepEl.innerHTML = `${headerHtml}<div class='step-content'>${contentHtml}</div>`;
+
+                if (index > 0) {
+                    const lineTop = document.createElement('div');
+                    lineTop.className = 'connection-line top';
+                    stepEl.prepend(lineTop);
+                }
+                if (index < filteredSteps.length - 1) {
+                    const lineBottom = document.createElement('div');
+                    lineBottom.className = 'connection-line bottom';
+                    stepEl.appendChild(lineBottom);
+                }
+
+                stepEl.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    openPropertiesPanel(stepData.id);
+                });
+
+                stepEl.addEventListener('dragstart', handleDragStart);
+                stepEl.addEventListener('dragover', handleDragOver);
+                stepEl.addEventListener('drop', handleDrop);
+                stepEl.addEventListener('dragend', handleDragEnd);
+
+                funnelList.appendChild(stepEl);
+            });
+        }
+
+        let draggedItem = null;
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            setTimeout(() => {
+                this.classList.add('dragging');
+                this.style.opacity = '0.5';
+            }, 0);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.id);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const boundingBox = this.getBoundingClientRect();
+            const offset = boundingBox.y + (boundingBox.height / 2);
+
+            if (e.clientY > offset) {
+                this.style.borderBottom = '3px solid #3b82f6';
+                this.style.borderTop = '1px solid #e2e8f0';
+            } else {
+                this.style.borderTop = '3px solid #3b82f6';
+                this.style.borderBottom = '1px solid #e2e8f0';
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.style.borderTop = '1px solid #e2e8f0';
+            this.style.borderBottom = '1px solid #e2e8f0';
+
+            if (draggedItem && draggedItem !== this) {
+                const dragIndex = parseInt(draggedItem.dataset.index);
+                const dropIndex = parseInt(this.dataset.index);
+
+                const [removed] = funnelData.steps.splice(dragIndex, 1);
+                funnelData.steps.splice(dropIndex, 0, removed);
+
+                saveState();
+                renderFunnel();
+            }
+        }
+
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+            this.style.opacity = '1';
+            this.style.borderTop = '1px solid #e2e8f0';
+            this.style.borderBottom = '1px solid #e2e8f0';
+            draggedItem = null;
+        }
+
+        function renderFlowchart() {
+            flowchartView.innerHTML = '';
+            jsPlumb.reset();
+
+            const instance = jsPlumb.getInstance({
+                DragOptions: { cursor: 'pointer', zIndex: 2000 },
+                ConnectionOverlays: [
+                    ["Arrow", {
+                        location: 1,
+                        visible: true,
+                        width: 11,
+                        length: 11,
+                        id: "ARROW",
+                        events: { click: function() { alert("you clicked on an arrow overlay") } }
+                    }],
+                    ["Label", {
+                        location: 0.1,
+                        id: "label",
+                        cssClass: "aLabel",
+                        events: { tap: function() { alert("tap on label"); } }
+                    }]
+                ],
+                Container: "flowchart-view"
+            });
+
+            const common = {
+                endpoint: "Dot",
+                anchor: "Continuous",
+                paintStyle: { strokeWidth: 2, stroke: "#61B7CF", outlineStroke: "transparent", outlineWidth: 4 },
+                hoverPaintStyle: { stroke: "#1e8151" },
+                connector: ["Flowchart", { stub: [40, 60], gap: 10, cornerRadius: 5, alwaysRespectStubs: true }]
+            };
+
+            funnelData.steps.forEach((step, index) => {
+                const node = document.createElement('div');
+                node.className = 'flowchart-node';
+                node.id = step.id;
+                node.style.left = step.x || `${50 + index * 250}px`;
+                node.style.top = step.y || '100px';
+
+                const allFunnelErrors = validateFunnel();
+                const stepErrors = allFunnelErrors.find(err => err.stepId === step.id);
+                if (stepErrors) {
+                    node.classList.add('border-red-500');
+                    node.title = 'This node has configuration errors:\n' + stepErrors.errors.join('\n');
+                } else {
+                    node.classList.remove('border-red-500');
+                    node.title = '';
+                }
+
+                node.innerHTML = renderNodeHeader(step.type, step.name) + `<div class='p-2 text-sm'>${renderNodeContent(step)}</div>`;
+                flowchartView.appendChild(node);
+
+                instance.draggable(node, {
+                    grid: [10, 10],
+                    stop: (params) => {
+                        const updatedStep = funnelData.steps.find(s => s.id === params.el.id);
+                        if (updatedStep) {
+                            updatedStep.x = params.pos[0] + 'px';
+                            updatedStep.y = params.pos[1] + 'px';
+                            saveState();
+                        }
+                    }
+                });
+
+                instance.addEndpoint(node, { anchor: "Bottom", uuid: `${step.id}-out` }, common);
+                instance.addEndpoint(node, { anchor: "Top", uuid: `${step.id}-in`, isTarget: true }, common);
+
+                node.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openPropertiesPanel(step.id);
+                });
+            });
+
+            funnelData.steps.forEach((step, index) => {
+                const sourceId = step.id;
+                if (index < funnelData.steps.length - 1 && !step.properties.nextStepId && step.type !== 'conditional_branch' && step.type !== 'trigger') {
+                    const targetId = funnelData.steps[index + 1].id;
+                    instance.connect({
+                        uuids: [`${sourceId}-out`, `${targetId}-in`],
+                    });
+                }
+
+                if (step.type === 'conditional_branch') {
+                    if (step.properties.conditions) {
+                        step.properties.conditions.forEach((condition, condIndex) => {
+                            if (condition.targetId) {
+                                instance.connect({
+                                    uuids: [`${sourceId}-out`, `${condition.targetId}-in`],
+                                    overlays: [
+                                        ["Label", { label: `Condition ${condIndex + 1}`, id: "condLabel" + condIndex, cssClass: "flowchart-label bg-purple-200 text-purple-800 px-2 py-1 rounded-full text-xs" }]
+                                    ]
+                                });
+                            }
+                        });
+                    }
+                    if (step.properties.fallbackId) {
+                        instance.connect({
+                            uuids: [`${sourceId}-out`, `${step.properties.fallbackId}-in`],
+                            overlays: [
+                                ["Label", { label: "Fallback", id: "fallbackLabel", cssClass: "flowchart-label bg-gray-200 text-gray-800 px-2 py-1 rounded-full text-xs" }]
+                            ]
+                        });
+                    }
+                }
+
+                if (step.type === 'trigger') {
+                    if (step.properties.buttons) {
+                        step.properties.buttons.forEach((button, btnIndex) => {
+                            if (button.targetId) {
+                                instance.connect({
+                                    uuids: [`${sourceId}-out`, `${button.targetId}-in`],
+                                    overlays: [
+                                        ["Label", { label: `Button: ${button.text}`, id: "btnLabel" + btnIndex, cssClass: "flowchart-label bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs" }]
+                                    ]
+                                });
+                            }
+                        });
+                    }
+                    if (step.properties.keywords) {
+                        step.properties.keywords.split(',').map(k => k.trim()).filter(Boolean).forEach((keyword) => {
+                            if (step.properties[`keyword_${keyword}`]) {
+                                instance.connect({
+                                    uuids: [`${sourceId}-out`, `${step.properties[`keyword_${keyword}`]}-in`],
+                                    overlays: [
+                                        ["Label", { label: `Keyword: ${keyword}`, id: "kwLabel" + keyword, cssClass: "flowchart-label bg-orange-200 text-orange-800 px-2 py-1 rounded-full text-xs" }]
+                                    ]
+                                });
+                            }
+                        });
+                    }
+                    if (step.properties.defaultPathId) {
+                        instance.connect({
+                            uuids: [`${sourceId}-out`, `${step.properties.defaultPathId}-in`],
+                            overlays: [
+                                ["Label", { label: "Default Path", id: "defaultLabel", cssClass: "flowchart-label bg-gray-200 text-gray-800 px-2 py-1 rounded-full text-xs" }]
+                            ]
+                        });
+                    }
+                }
+
+                if (step.properties.nextStepId) {
+                    instance.connect({
+                        uuids: [`${sourceId}-out`, `${step.properties.nextStepId}-in`],
+                        overlays: [
+                            ["Label", { label: "Next Step", id: "explicitNextLabel", cssClass: "flowchart-label bg-emerald-200 text-emerald-800 px-2 py-1 rounded-full text-xs" }]
+                        ]
+                    });
+                }
+            });
+
+            jsPlumb.fire("jsPlumbDemoLoaded", instance);
+        }
+
+        function renderNodeHeader(type, name = '') {
+            let icon = '';
+            let bgColor = '';
+            let typeText = '';
+
+            switch (type) {
+                case 'trigger':
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.93 6.07a.99.99 0 0 1 0 1.41L11.41 14.1a.99.99 0 0 1-1.41 0L8.07 12.57a1 1 0 0 1 1.41-1.41l1.24 1.24 3.25-3.25a1 1 0 0 1 1.4.01z"></path></svg>`;
+                    bgColor = 'bg-blue-500';
+                    typeText = translations[currentLanguage].trigger;
+                    break;
+                case 'message':
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3zM8 7h8v2H8zm0 4h8v2H8zm0 4h5v2H8z"></path></svg>`;
+                    bgColor = 'bg-green-500';
+                    typeText = translations[currentLanguage].message;
+                    break;
+                case 'wait_until':
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm.1 14.93a1 1 0 0 1-1-1v-4a1 1 0 0 1 2 0v4a1 1 0 0 1-1 1zm-3.66-8.54a1 1 0 0 1 1.41 0l3.66 3.66a1 1 0 0 1-1.41 1.41L8.85 9.79a1 1 0 0 1 0-1.41zm1.41 1.41a1 1 0 0 1 0 1.41l-3.66 3.66a1 1 0 0 1-1.41-1.41l3.66-3.66a1 1 0 0 1 1.41 0z"></path></svg>`;
+                    bgColor = 'bg-amber-500';
+                    typeText = translations[currentLanguage].wait;
+                    break;
+                case 'conditional_branch':
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zM9 16a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1zm5 0a1 1 0 0 1-1-1v-2a1 1 0 0 1 2 0v2a1 1 0 0 1-1 1zm-2-7a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1z"></path></svg>`;
+                    bgColor = 'bg-purple-500';
+                    typeText = translations[currentLanguage].branch;
+                    break;
+                case 'api':
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M14 6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM4 6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM14 14a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM4 14a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path></svg>`;
+                    bgColor = 'bg-red-500';
+                    typeText = translations[currentLanguage].api;
+                    break;
+            }
+
+            return `
+                <div class="step-header">
+                    <span class="p-2 rounded-full text-white ${bgColor}">${icon}</span>
+                    <div class="flex flex-col">
+                        <span class="text-sm text-gray-500 font-medium">${typeText}</span>
+                        <span>${name || 'Untitled Node'}</span>
+                    </div>
+                    <button onclick="deleteNode('${type}', event)" class="ml-auto text-gray-400 hover:text-red-500" title="Delete Node">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderNodeContent(stepData) {
+            let content = `<p><strong>ID:</strong> ${stepData.id}</p>`;
+            switch (stepData.type) {
+                case 'trigger':
+                    content += `<p><strong>Name:</strong> ${stepData.name}</p>`;
+                    content += `<p><strong>Keywords:</strong> ${stepData.properties.keywords || 'N/A'}</p>`;
+                    content += `<p><strong>Buttons:</strong> ${stepData.properties.buttons?.length || 0}</p>`;
+                    break;
+                case 'message':
+                    content += `<p><strong>Name:</strong> ${stepData.name}</p>`;
+                    content += `<p><strong>Template ID:</strong> ${stepData.properties.templateId || 'Not Set'}</p>`;
+                    break;
+                case 'wait_until':
+                    content += `<p><strong>Name:</strong> ${stepData.name}</p>`;
+                    content += `<p><strong>Wait Type:</strong> ${stepData.properties.waitType || 'N/A'}</p>`;
+                    if (stepData.properties.waitType === 'duration') {
+                        content += `<p><strong>Duration:</strong> ${stepData.properties.duration || 'N/A'} ${stepData.properties.durationUnit || ''}</p>`;
+                    } else if (stepData.properties.waitType === 'date_time') {
+                        content += `<p><strong>Target Date/Time:</strong> ${stepData.properties.targetDateTime || 'N/A'}</p>`;
+                    }
+                    break;
+                case 'conditional_branch':
+                    content += `<p><strong>Name:</strong> ${stepData.name}</p>`;
+                    content += `<p><strong>Conditions:</strong> ${stepData.properties.conditions?.length || 0}</p>`;
+                    break;
+                case 'api':
+                    content += `<p><strong>Name:</strong> ${stepData.name}</p>`;
+                    content += `<p><strong>Method:</strong> ${stepData.properties.method || 'N/A'}</p>`;
+                    content += `<p><strong>URL:</strong> ${stepData.properties.url || 'N/A'}</p>`;
+                    break;
+            }
+            return content;
+        }
+
+        function renderPropertiesPanel(stepData) {
+            panelContent.innerHTML = '';
+            const nodeType = stepData.type;
+            const nodeId = stepData.id;
+
+            const panelTitle = document.createElement('h3');
+            panelTitle.className = 'text-2xl font-semibold text-gray-900 tracking-tight mb-6';
+            panelTitle.textContent = translations[currentLanguage].edit_node.replace('{type}', translations[currentLanguage][nodeType] || nodeType);
+            panelContent.appendChild(panelTitle);
+
+            panelContent.innerHTML += `
+                <div class="mb-4">
+                    <label for="node-name" class="block text-sm font-medium text-gray-700 mb-1">Node Name</label>
+                    <input type="text" id="node-name" value="${stepData.name || ''}" class="form-input" placeholder="Enter node name" oninput="updateNodeProperty('${nodeId}', 'name', this.value)">
+                </div>
+            `;
+
+            if (nodeType !== 'conditional_branch' && nodeType !== 'trigger') {
+                 panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label for="next-step-id" class="block text-sm font-medium text-gray-700 mb-1">Next Step (Optional)</label>
+                        <select id="next-step-id" class="form-select" onchange="updateNodeProperty('${nodeId}', 'nextStepId', this.value)">
+                            <option value="">-- Select next step --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${stepData.properties.nextStepId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">If not set, flows sequentially (in list view).</p>
+                    </div>
+                `;
+            }
+
+            if (nodeType === 'trigger') {
+                panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label for="trigger-keywords" class="block text-sm font-medium text-gray-700 mb-1">Keywords (comma-separated)</label>
+                        <input type="text" id="trigger-keywords" value="${stepData.properties.keywords || ''}" class="form-input" placeholder="e.g., hello, buy, support" oninput="updateTriggerKeywords('${nodeId}', this.value)">
+                        <p class="text-xs text-gray-500 mt-1">Define keywords that trigger this path. Each keyword needs a target node.</p>
+                    </div>
+                    <div id="keyword-targets" class="mb-4 space-y-2 border p-3 rounded-lg bg-gray-50"></div>
+
+                    <div class="mb-4 border-t border-gray-200 pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Buttons</label>
+                        <div id="trigger-buttons-container" class="space-y-3">
+                            ${(stepData.properties.buttons || []).map((button, index) => `
+                                <div class="flex items-end gap-2 p-2 border border-gray-200 rounded-md bg-white">
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Button Text</label>
+                                        <input type="text" value="${button.text || ''}" class="form-input text-sm" oninput="updateTriggerButton('${nodeId}', ${index}, 'text', this.value)" placeholder="Button text">
+                                    </div>
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Target Node</label>
+                                        <select class="form-select text-sm" onchange="updateTriggerButton('${nodeId}', ${index}, 'targetId', this.value)">
+                                            <option value="">-- Select node --</option>
+                                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                                <option value="${s.id}" ${button.targetId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                    <button onclick="removeTriggerButton('${nodeId}', ${index})" class="text-red-500 hover:text-red-700 p-2 rounded-md transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="addTriggerButton('${nodeId}')" class="mt-4 w-full btn-add-condition text-sm">
+                            ${translations[currentLanguage].add_button}
+                        </button>
+                    </div>
+
+                    <div class="mb-4 border-t border-gray-200 pt-4">
+                        <label for="trigger-default-path" class="block text-sm font-medium text-gray-700 mb-1">Default Path (if no match)</label>
+                        <select id="trigger-default-path" class="form-select" onchange="updateNodeProperty('${nodeId}', 'defaultPathId', this.value)">
+                            <option value="">-- Select default path --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${stepData.properties.defaultPathId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">If no keywords or buttons match, direct to this node.</p>
+                    </div>
+                `;
+                updateTriggerKeywordTargets(nodeId);
+            } else if (nodeType === 'message') {
+                panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label for="template-id" class="block text-sm font-medium text-gray-700 mb-1">Template ID</label>
+                        <input type="text" id="template-id" value="${stepData.properties.templateId || ''}" class="form-input" placeholder="e.g., welcome_message_template" oninput="updateNodeProperty('${nodeId}', 'templateId', this.value)">
+                        <p class="text-xs text-gray-500 mt-1">Identifier for the message template to send.</p>
+                    </div>
+                    <div class="mb-4">
+                        <label for="message-content" class="block text-sm font-medium text-gray-700 mb-1">Message Content (for preview)</label>
+                        <textarea id="message-content" rows="4" class="form-textarea" placeholder="Enter message content for preview purposes">${stepData.properties.messageContent || ''}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">This content is for display in preview. Actual message uses Template ID.</p>
+                    </div>
+                `;
+            } else if (nodeType === 'wait_until') {
+                panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label for="wait-type" class="block text-sm font-medium text-gray-700 mb-1">Wait Type</label>
+                        <select id="wait-type" class="form-select" onchange="updateWaitType('${nodeId}', this.value)">
+                            <option value="">-- Select type --</option>
+                            <option value="duration" ${stepData.properties.waitType === 'duration' ? 'selected' : ''}>Duration</option>
+                            <option value="date_time" ${stepData.properties.waitType === 'date_time' ? 'selected' : ''}>Specific Date/Time</option>
+                        </select>
+                    </div>
+                    <div id="wait-duration-options" class="mb-4 ${stepData.properties.waitType === 'duration' ? '' : 'hidden'}">
+                        <label for="wait-duration" class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="wait-duration" value="${stepData.properties.duration || ''}" class="form-input flex-1" placeholder="e.g., 5" oninput="updateNodeProperty('${nodeId}', 'duration', this.value)">
+                            <select id="wait-duration-unit" class="form-select w-28" onchange="updateNodeProperty('${nodeId}', 'durationUnit', this.value)">
+                                <option value="minutes" ${stepData.properties.durationUnit === 'minutes' ? 'selected' : ''}>Minutes</option>
+                                <option value="hours" ${stepData.properties.durationUnit === 'hours' ? 'selected' : ''}>Hours</option>
+                                <option value="days" ${stepData.properties.durationUnit === 'days' ? 'selected' : ''}>Days</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="wait-datetime-options" class="mb-4 ${stepData.properties.waitType === 'date_time' ? '' : 'hidden'}">
+                        <label for="wait-target-datetime" class="block text-sm font-medium text-gray-700 mb-1">Target Date/Time</label>
+                        <input type="datetime-local" id="wait-target-datetime" value="${stepData.properties.targetDateTime || ''}" class="form-input" oninput="updateNodeProperty('${nodeId}', 'targetDateTime', this.value)">
+                    </div>
+                `;
+            } else if (nodeType === 'conditional_branch') {
+                panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Conditions</label>
+                        <div id="conditions-container" class="space-y-4">
+                            ${(stepData.properties.conditions || []).map((condition, index) => `
+                                <div class="p-3 border border-gray-200 rounded-lg bg-white relative">
+                                    <button onclick="removeCondition('${nodeId}', ${index})" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1 rounded-full transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                    <div class="mb-2">
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Variable</label>
+                                        <input type="text" value="${condition.variable || ''}" class="form-input text-sm" placeholder="e.g., user_score" oninput="updateCondition('${nodeId}', ${index}, 'variable', this.value)">
+                                    </div>
+                                    <div class="mb-2 flex gap-2">
+                                        <div class="flex-1">
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Operator</label>
+                                            <select class="form-select text-sm" onchange="updateCondition('${nodeId}', ${index}, 'operator', this.value)">
+                                                <option value="">-- Select --</option>
+                                                <option value="equals" ${condition.operator === 'equals' ? 'selected' : ''}>Equals</option>
+                                                <option value="not_equals" ${condition.operator === 'not_equals' ? 'selected' : ''}>Not Equals</option>
+                                                <option value="greater_than" ${condition.operator === 'greater_than' ? 'selected' : ''}>Greater Than</option>
+                                                <option value="less_than" ${condition.operator === 'less_than' ? 'selected' : ''}>Less Than</option>
+                                                <option value="contains" ${condition.operator === 'contains' ? 'selected' : ''}>Contains</option>
+                                            </select>
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Value</label>
+                                            <input type="text" value="${condition.value || ''}" class="form-input text-sm" placeholder="e.g., 100" oninput="updateCondition('${nodeId}', ${index}, 'value', this.value)">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Target Node</label>
+                                        <select class="form-select text-sm" onchange="updateCondition('${nodeId}', ${index}, 'targetId', this.value)">
+                                            <option value="">-- Select node --</option>
+                                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                                <option value="${s.id}" ${condition.targetId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="addCondition('${nodeId}')" class="mt-4 w-full btn-add-condition text-sm">
+                            ${translations[currentLanguage].add_condition}
+                        </button>
+                    </div>
+                    <div class="mb-4 border-t border-gray-200 pt-4">
+                        <label for="fallback-path" class="block text-sm font-medium text-gray-700 mb-1">Fallback Path</label>
+                        <select id="fallback-path" class="form-select" onchange="updateNodeProperty('${nodeId}', 'fallbackId', this.value)">
+                            <option value="">-- Select fallback node --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${stepData.properties.fallbackId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">If no conditions are met, direct to this node.</p>
+                    </div>
+                `;
+            } else if (nodeType === 'api') {
+                panelContent.innerHTML += `
+                    <div class="mb-4">
+                        <label for="api-method" class="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                        <select id="api-method" class="form-select" onchange="updateNodeProperty('${nodeId}', 'method', this.value)">
+                            <option value="">-- Select method --</option>
+                            <option value="GET" ${stepData.properties.method === 'GET' ? 'selected' : ''}>GET</option>
+                            <option value="POST" ${stepData.properties.method === 'POST' ? 'selected' : ''}>POST</option>
+                            <option value="PUT" ${stepData.properties.method === 'PUT' ? 'selected' : ''}>PUT</option>
+                            <option value="DELETE" ${stepData.properties.method === 'DELETE' ? 'selected' : ''}>DELETE</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="api-url" class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                        <input type="text" id="api-url" value="${stepData.properties.url || ''}" class="form-input" placeholder="https://api.example.com/endpoint" oninput="updateNodeProperty('${nodeId}', 'url', this.value)">
+                    </div>
+                    <div class="mb-4">
+                        <label for="api-headers" class="block text-sm font-medium text-gray-700 mb-1">Headers (JSON)</label>
+                        <textarea id="api-headers" rows="3" class="form-textarea" placeholder='{"Content-Type": "application/json"}' oninput="updateNodeProperty('${nodeId}', 'headers', this.value)">${stepData.properties.headers ? JSON.stringify(stepData.properties.headers, null, 2) : ''}</textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label for="api-body" class="block text-sm font-medium text-gray-700 mb-1">Body (JSON)</label>
+                        <textarea id="api-body" rows="5" class="form-textarea" placeholder='{"key": "value"}' oninput="updateNodeProperty('${nodeId}', 'body', this.value)">${stepData.properties.body ? JSON.stringify(stepData.properties.body, null, 2) : ''}</textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label for="api-success-path" class="block text-sm font-medium text-gray-700 mb-1">Success Path</label>
+                        <select id="api-success-path" class="form-select" onchange="updateNodeProperty('${nodeId}', 'successPathId', this.value)">
+                            <option value="">-- Select node for success --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${stepData.properties.successPathId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="api-fail-path" class="block text-sm font-medium text-gray-700 mb-1">Failure Path</label>
+                        <select id="api-fail-path" class="form-select" onchange="updateNodeProperty('${nodeId}', 'failPathId', this.value)">
+                            <option value="">-- Select node for failure --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${stepData.properties.failPathId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+
+            panelContent.innerHTML += `
+                <div class="mt-8 pt-4 border-t border-gray-200">
+                    <button onclick="deleteNode('${nodeId}')" class="w-full bg-red-500 text-white p-3 rounded-lg font-semibold hover:bg-red-600 transition-colors">
+                        ${translations[currentLanguage].delete_node}
+                    </button>
+                </div>
+            `;
+        }
+
+        function updateNodeProperty(id, property, value) {
+            const step = funnelData.steps.find(s => s.id === id);
+            if (step) {
+                if (property === 'name') {
+                    step.name = value;
+                } else {
+                    if (step.type === 'api' && (property === 'headers' || property === 'body')) {
+                        try {
+                            step.properties[property] = value.trim() === '' ? null : JSON.parse(value);
+                        } catch (e) {
+                            console.error(`Invalid JSON for ${property}:`, e);
+                        }
+                    } else {
+                        step.properties[property] = value;
+                    }
+                }
+                saveState();
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+                renderPropertiesPanel(step);
+            }
+        }
+
+        function updateTriggerKeywords(nodeId, value) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step) {
+                step.properties.keywords = value;
+                updateTriggerKeywordTargets(nodeId);
+                saveState();
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+            }
+        }
+
+        function updateTriggerKeywordTargets(nodeId) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (!step) return;
+
+            const keywordTargetsContainer = document.getElementById('keyword-targets');
+            if (!keywordTargetsContainer) return;
+
+            const keywords = step.properties.keywords?.split(',').map(k => k.trim()).filter(Boolean) || [];
+            let html = '';
+
+            keywords.forEach(kw => {
+                const currentTargetId = step.properties[`keyword_${kw}`] || '';
+                html += `
+                    <div class="flex items-center gap-2">
+                        <label class="block text-sm font-medium text-gray-600 w-24 flex-shrink-0">Keyword "${kw}"</label>
+                        <select class="form-select text-sm flex-1" onchange="updateNodeProperty('${nodeId}', 'keyword_${kw}', this.value)">
+                            <option value="">-- Select target node --</option>
+                            ${funnelData.steps.filter(s => s.id !== nodeId).map(s => `
+                                <option value="${s.id}" ${currentTargetId === s.id ? 'selected' : ''}>${s.name || s.type + ' ' + s.id}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                `;
+            });
+            keywordTargetsContainer.innerHTML = html;
+        }
+
+        function addTriggerButton(nodeId) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step) {
+                if (!step.properties.buttons) {
+                    step.properties.buttons = [];
+                }
+                step.properties.buttons.push({ text: '', targetId: '' });
+                saveState();
+                openPropertiesPanel(nodeId);
+            }
+        }
+
+        function updateTriggerButton(nodeId, index, property, value) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step && step.properties.buttons && step.properties.buttons[index]) {
+                step.properties.buttons[index][property] = value;
+                saveState();
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+            }
+        }
+
+        function removeTriggerButton(nodeId, index, event) {
+            if (event) event.stopPropagation();
+
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step && step.properties.buttons) {
+                step.properties.buttons.splice(index, 1);
+                saveState();
+                openPropertiesPanel(nodeId);
+            }
+        }
+
+        function updateWaitType(nodeId, type) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step) {
+                step.properties.waitType = type;
+                if (type === 'duration') {
+                    delete step.properties.targetDateTime;
+                } else if (type === 'date_time') {
+                    delete step.properties.duration;
+                    delete step.properties.durationUnit;
+                }
+                saveState();
+                openPropertiesPanel(nodeId);
+            }
+        }
+
+        function addCondition(nodeId) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step) {
+                if (!step.properties.conditions) {
+                    step.properties.conditions = [];
+                }
+                step.properties.conditions.push({ variable: '', operator: '', value: '', targetId: '' });
+                saveState();
+                openPropertiesPanel(nodeId);
+            }
+        }
+
+        function updateCondition(nodeId, index, property, value) {
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step && step.properties.conditions && step.properties.conditions[index]) {
+                step.properties.conditions[index][property] = value;
+                saveState();
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+            }
+        }
+
+        function removeCondition(nodeId, index, event) {
+            if (event) event.stopPropagation();
+            const step = funnelData.steps.find(s => s.id === nodeId);
+            if (step && step.properties.conditions) {
+                step.properties.conditions.splice(index, 1);
+                saveState();
+                openPropertiesPanel(nodeId);
+            }
+        }
+
+        // --- Funnel Management ---
+        function addNode(type) {
+            stepIdCounter++;
+            const newId = `node-${stepIdCounter}`;
+            const newNode = {
+                id: newId,
+                type: type,
+                name: `${type.replace('_', ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} ${stepIdCounter}`,
+                properties: {}
+            };
+
+            if (type === 'trigger') {
+                newNode.properties = { keywords: '', buttons: [], defaultPathId: '' };
+            } else if (type === 'message') {
+                newNode.properties = { templateId: '', messageContent: '' };
+            } else if (type === 'wait_until') {
+                newNode.properties = { waitType: 'duration', duration: 1, durationUnit: 'minutes', nextStepId: '' };
+            } else if (type === 'conditional_branch') {
+                newNode.properties = { conditions: [], fallbackId: '' };
+            } else if (type === 'api') {
+                newNode.properties = { method: 'GET', url: '', headers: null, body: null, successPathId: '', failPathId: '' };
+            }
+
+            funnelData.steps.push(newNode);
+            saveState();
+            renderFunnel();
+            if (isFlowchartView) renderFlowchart();
+            openPropertiesPanel(newId);
+        }
+
+        function deleteNode(nodeId, event) {
+            if (event) event.stopPropagation();
+
+            if (confirm('Are you sure you want to delete this node?')) {
+                funnelData.steps = funnelData.steps.filter(step => step.id !== nodeId);
+
+                funnelData.steps.forEach(step => {
+                    if (step.properties.nextStepId === nodeId) {
+                        step.properties.nextStepId = '';
+                    }
+
+                    if (step.type === 'trigger') {
+                        if (step.properties.defaultPathId === nodeId) {
+                            step.properties.defaultPathId = '';
+                        }
+                        if (step.properties.buttons) {
+                            step.properties.buttons = step.properties.buttons.filter(btn => btn.targetId !== nodeId);
+                        }
+                        for (const prop in step.properties) {
+                            if (prop.startsWith('keyword_') && step.properties[prop] === nodeId) {
+                                delete step.properties[prop];
+                            }
+                        }
+                    }
+
+                    if (step.type === 'conditional_branch') {
+                        if (step.properties.fallbackId === nodeId) {
+                            step.properties.fallbackId = '';
+                        }
+                        if (step.properties.conditions) {
+                            step.properties.conditions = step.properties.conditions.filter(cond => cond.targetId !== nodeId);
+                        }
+                    }
+
+                    if (step.type === 'api') {
+                        if (step.properties.successPathId === nodeId) {
+                            step.properties.successPathId = '';
+                        }
+                        if (step.properties.failPathId === nodeId) {
+                            step.properties.failPathId = '';
+                        }
+                    }
+                });
+
+                closePropertiesPanel();
+                saveState();
+                renderFunnel();
+                if (isFlowchartView) renderFlowchart();
+            }
+        }
+
+        function openPropertiesPanel(id) {
+            selectedNodeId = id;
+            const step = funnelData.steps.find(s => s.id === id);
+            if (step) {
+                renderPropertiesPanel(step);
+                propertiesPanel.classList.remove('translate-x-full');
+                document.querySelectorAll('.funnel-step, .flowchart-node').forEach(el => el.classList.remove('selected'));
+                document.getElementById(id)?.classList.add('selected');
+            }
+        }
+
+        function closePropertiesPanel() {
+            selectedNodeId = null;
+            propertiesPanel.classList.add('translate-x-full');
+            document.querySelectorAll('.funnel-step, .flowchart-node').forEach(el => el.classList.remove('selected'));
+            panelContent.innerHTML = '';
+        }
+
+        function toggleView() {
+            isFlowchartView = !isFlowchartView;
+            if (isFlowchartView) {
+                funnelListContainer.classList.add('hidden');
+                flowchartView.classList.remove('hidden');
+                jsPlumb.ready(function() {
+                    renderFlowchart();
+                });
+            } else {
+                funnelListContainer.classList.remove('hidden');
+                flowchartView.classList.add('hidden');
+                renderFunnel();
+                jsPlumb.reset();
+            }
+        }
+
+        // --- Persistence (Local Storage) ---
+        function saveFunnel() {
+            try {
+                localStorage.setItem('funnelData', JSON.stringify(funnelData));
+                localStorage.setItem('stepIdCounter', stepIdCounter);
+                localStorage.setItem('funnelHistory', JSON.stringify(history));
+                localStorage.setItem('funnelHistoryIndex', historyIndex);
+                alert('Funnel saved successfully!');
+            } catch (e) {
+                alert('Failed to save funnel: ' + e.message);
+            }
+        }
+
+        function loadFunnel() {
+            if (confirm('Are you sure you want to load the last saved funnel? Unsaved changes will be lost.')) {
+                try {
+                    const savedData = localStorage.getItem('funnelData');
+                    const savedCounter = localStorage.getItem('stepIdCounter');
+                    const savedHistory = localStorage.getItem('funnelHistory');
+                    const savedHistoryIndex = localStorage.getItem('funnelHistoryIndex');
+
+                    if (savedData) {
+                        funnelData = JSON.parse(savedData);
+                        stepIdCounter = parseInt(savedCounter || '0');
+                        history.splice(0, history.length, ...JSON.parse(savedHistory || '[]'));
+                        historyIndex = parseInt(savedHistoryIndex || '-1');
+
+                        renderFunnel();
+                        if (isFlowchartView) renderFlowchart();
+                        closePropertiesPanel();
+                        alert('Funnel loaded successfully!');
+                    } else {
+                        alert('No saved funnel found.');
+                    }
+                } catch (e) {
+                    alert('Failed to load funnel: ' + e.message);
+                }
+            }
+        }
+
+        function exportFunnel() {
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(funnelData, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "funnel.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                alert('Funnel exported to funnel.json!');
+            } catch (e) {
+                alert('Failed to export funnel: ' + e.message);
+            }
+        }
+
+        function importFunnel() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (importedData && Array.isArray(importedData.steps)) {
+                            funnelData = importedData;
+                            stepIdCounter = funnelData.steps.reduce((maxId, step) => {
+                                const idNum = parseInt(step.id.replace('node-', '')) || 0;
+                                return Math.max(maxId, idNum);
+                            }, 0);
+                            saveState();
+                            renderFunnel();
+                            if (isFlowchartView) renderFlowchart();
+                            closePropertiesPanel();
+                            alert('Funnel imported successfully!');
+                        } else {
+                            alert('Invalid funnel file. Please ensure it contains a "steps" array.');
+                        }
+                    } catch (error) {
+                        alert('Error parsing funnel file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // --- Modals ---
+        function openPreview() {
+            const previewContent = document.getElementById('preview-content');
+            previewContent.innerHTML = '';
+
+            const errors = validateFunnel();
+            if (errors.length > 0) {
+                previewContent.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <strong class="font-bold">Validation Errors:</strong>
+                    <ul class="mt-2 list-disc list-inside">
+                        ${errors.map(err => `<li><strong>Node ${funnelData.steps.find(s => s.id === err.stepId)?.name || err.stepId}:</strong> ${err.errors.join(', ')}</li>`).join('')}
+                    </ul>
+                    <p class="mt-2">Please fix these errors before previewing.</p>
+                </div>`;
+            } else {
+                funnelData.steps.forEach(step => {
+                    let stepHtml = `<div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 class="font-semibold text-blue-800 text-lg">${step.name || 'Untitled ' + step.type.replace('_', ' ')} (${step.type})</h4>
+                        <p class="text-sm text-gray-700 mt-1">ID: ${step.id}</p>`;
+
+                    if (step.type === 'message') {
+                        stepHtml += `<p class="mt-2"><strong>Message:</strong> ${step.properties.messageContent || 'No preview content set. Using template ID: ' + step.properties.templateId}</p>`;
+                    } else if (step.type === 'trigger') {
+                        if (step.properties.keywords) {
+                            stepHtml += `<p class="mt-2"><strong>Keywords:</strong> ${step.properties.keywords}</p>`;
+                        }
+                        if (step.properties.buttons && step.properties.buttons.length > 0) {
+                            stepHtml += `<p class="mt-2"><strong>Buttons:</strong></p><ul>`;
+                            step.properties.buttons.forEach(btn => {
+                                const targetNode = funnelData.steps.find(s => s.id === btn.targetId);
+                                stepHtml += `<li class="ml-4">- "${btn.text}" -> ${targetNode ? targetNode.name : 'Unknown Node'}</li>`;
+                            });
+                            stepHtml += `</ul>`;
+                        }
+                        if (step.properties.defaultPathId) {
+                            const defaultNode = funnelData.steps.find(s => s.id === step.properties.defaultPathId);
+                            stepHtml += `<p class="mt-2"><strong>Default Path:</strong> ${defaultNode ? defaultNode.name : 'Unknown Node'}</p>`;
+                        }
+                    } else if (step.type === 'wait_until') {
+                        if (step.properties.waitType === 'duration') {
+                            stepHtml += `<p class="mt-2"><strong>Waits for:</strong> ${step.properties.duration} ${step.properties.durationUnit}</p>`;
+                        } else if (step.properties.waitType === 'date_time') {
+                            stepHtml += `<p class="mt-2"><strong>Waits until:</strong> ${new Date(step.properties.targetDateTime).toLocaleString()}</p>`;
+                        }
+                        const nextNode = funnelData.steps.find(s => s.id === step.properties.nextStepId);
+                        if (nextNode) {
+                             stepHtml += `<p><strong>Next:</strong> ${nextNode.name}</p>`;
+                        }
+                    } else if (step.type === 'conditional_branch') {
+                        if (step.properties.conditions && step.properties.conditions.length > 0) {
+                            stepHtml += `<p class="mt-2"><strong>Conditions:</strong></p><ul>`;
+                            step.properties.conditions.forEach(cond => {
+                                const targetNode = funnelData.steps.find(s => s.id === cond.targetId);
+                                stepHtml += `<li class="ml-4">- If ${cond.variable} ${cond.operator} ${cond.value} -> ${targetNode ? targetNode.name : 'Unknown Node'}</li>`;
+                            });
+                            stepHtml += `</ul>`;
+                        }
+                        if (step.properties.fallbackId) {
+                            const fallbackNode = funnelData.steps.find(s => s.id === step.properties.fallbackId);
+                            stepHtml += `<p class="mt-2"><strong>Fallback:</strong> ${fallbackNode ? fallbackNode.name : 'Unknown Node'}</p>`;
+                        }
+                    } else if (step.type === 'api') {
+                        stepHtml += `<p class="mt-2"><strong>API Call:</strong> ${step.properties.method} ${step.properties.url}</p>`;
+                        if (step.properties.successPathId) {
+                            const successNode = funnelData.steps.find(s => s.id === step.properties.successPathId);
+                            stepHtml += `<p><strong>On Success:</strong> ${successNode ? successNode.name : 'Unknown Node'}</p>`;
+                        }
+                        if (step.properties.failPathId) {
+                            const failNode = funnelData.steps.find(s => s.id === step.properties.failPathId);
+                            stepHtml += `<p><strong>On Failure:</strong> ${failNode ? failNode.name : 'Unknown Node'}</p>`;
+                        }
+                    }
+                    if (step.properties.nextStepId && step.type !== 'conditional_branch' && step.type !== 'trigger' && step.type !== 'api') {
+                        const nextNode = funnelData.steps.find(s => s.id === step.properties.nextStepId);
+                        stepHtml += `<p class="mt-2"><strong>Next Step:</strong> ${nextNode ? nextNode.name : 'Sequential flow'}</p>`;
+                    }
+                    stepHtml += `</div>`;
+                    previewContent.innerHTML += stepHtml;
+                });
+            }
+
+            document.getElementById('preview-modal').classList.remove('hidden');
+        }
+
+        function closePreview() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+
+        function viewAnalytics() {
+            const analyticsContent = document.getElementById('analytics-content');
+            analyticsContent.innerHTML = '';
+
+            const nodeCounts = {};
+            funnelData.steps.forEach(step => {
+                nodeCounts[step.type] = (nodeCounts[step.type] || 0) + 1;
+            });
+
+            const conversionData = {
+                labels: [],
+                data: [],
+                colors: []
+            };
+
+            let currentUsers = 1000;
+            funnelData.steps.forEach((step, index) => {
+                const stepName = step.name || `${step.type} ${step.id.split('-')[1]}`;
+                conversionData.labels.push(stepName);
+                conversionData.data.push(currentUsers);
+
+                let dropOffRate = 0.15;
+                if (step.type === 'trigger') dropOffRate = 0.05;
+                if (step.type === 'message') dropOffRate = 0.2;
+                if (step.type === 'api') dropOffRate = 0.1;
+                if (step.type === 'conditional_branch') dropOffRate = 0.25;
+
+                currentUsers = Math.max(0, currentUsers - (currentUsers * dropOffRate) - Math.floor(Math.random() * 50));
+
+                let color;
+                switch(step.type) {
+                    case 'trigger': color = '#22c55e'; break;
+                    case 'message': color = '#3b82f6'; break;
+                    case 'wait_until': color = '#f59e0b'; break;
+                    case 'conditional_branch': color = '#8b5cf6'; break;
+                    case 'api': color = '#ef4444'; break;
+                    default: color = '#64748b';
+                }
+                conversionData.colors.push(color);
+            });
+
+            analyticsContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <h4 class="font-semibold text-gray-800 mb-3">Node Type Distribution</h4>
+                        <canvas id="nodeTypeChart"></canvas>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <h4 class="font-semibold text-gray-800 mb-3">Funnel Conversion Rate</h4>
+                        <canvas id="conversionChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <h4 class="font-semibold text-gray-800 mb-3">Detailed Step Performance</h4>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Node Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Simulated Users</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${funnelData.steps.map((step, index) => {
+                                const usersIn = conversionData.data[index] || 0;
+                                const usersOut = (index < conversionData.data.length -1) ? conversionData.data[index+1] : usersIn;
+                                const completionRate = usersIn > 0 ? ((usersOut / usersIn) * 100).toFixed(2) : 0;
+                                return `
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${step.name || 'Untitled ' + step.type}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${step.type}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${usersIn}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${completionRate}%</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            new Chart(document.getElementById('nodeTypeChart'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(nodeCounts),
+                    datasets: [{
+                        data: Object.values(nodeCounts),
+                        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ef4444'],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribution of Node Types'
+                        }
+                    }
+                }
+            });
+
+            new Chart(document.getElementById('conversionChart'), {
+                type: 'line',
+                data: {
+                    labels: conversionData.labels,
+                    datasets: [{
+                        label: 'Simulated Users at Each Step',
+                        data: conversionData.data,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Funnel Conversion Overview (Simulated)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Users'
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('analytics-modal').classList.remove('hidden');
+        }
+
+        function closeAnalytics() {
+            document.getElementById('analytics-modal').classList.add('hidden');
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        function showShortcuts() {
+            alert('Keyboard Shortcuts:\n\n' +
+                  'Ctrl+S / Cmd+S: Save Funnel\n' +
+                  'Ctrl+Z / Cmd+Z: Undo\n' +
+                  'Ctrl+Y / Cmd+Y: Redo\n' +
+                  'Ctrl+L / Cmd+L: Load Funnel\n' +
+                  'Ctrl+E / Cmd+E: Export Funnel\n' +
+                  'Ctrl+I / Cmd+I: Import Funnel\n' +
+                  'Escape: Close Properties Panel / Modals\n\n' +
+                  'Drag & Drop: Reorder nodes in List View\n' +
+                  'Click Node: Open Properties Panel\n' +
+                  'Click + Button: Add new node');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveFunnel();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                undo();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault();
+                loadFunnel();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                exportFunnel();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+                e.preventDefault();
+                importFunnel();
+            } else if (e.key === 'Escape') {
+                closePropertiesPanel();
+                closePreview();
+                closeAnalytics();
+            }
+        });
+
+        document.getElementById('search-nodes').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredSteps = funnelData.steps.filter(step =>
+                (step.name && step.name.toLowerCase().includes(searchTerm)) ||
+                step.type.toLowerCase().includes(searchTerm) ||
+                step.id.toLowerCase().includes(searchTerm)
+            );
+            renderFunnel(filteredSteps);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply dark mode preference
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+            }
+
+            // Set language preference
+            document.querySelector('.form-select').value = currentLanguage;
+            updateUIText();
+
+            // Initialize jsPlumb when the flowchart view is active
+            if (isFlowchartView) {
+                jsPlumb.ready(function() {
+                    renderFlowchart();
+                });
+            } else {
+                renderFunnel();
+            }
+
+            saveState();
+        });
+    </script>
+</body>
+</html>
+{% endblock content %}

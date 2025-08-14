@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | WTS CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+  <div class="flex bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-5xl h-[90vh]">
+    <div class="hidden lg:flex flex-1 flex-col justify-center items-center p-12 bg-blue-600 text-white">
+      <div class="text-center">
+        <h1 class="text-5xl font-extrabold tracking-tight mb-4">WTS CRM</h1>
+        <p class="text-xl font-light leading-relaxed mb-6">
+          Streamline your communication with WhatsApp message templates, manage contacts, and drive sales.
+        </p>
+        <div class="bg-blue-500 rounded-lg p-4 inline-block shadow-md">
+          <p class="text-sm">Trusted by businesses worldwide.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-1 flex items-center justify-center p-8 sm:p-12">
+      <div class="w-full max-w-sm">
+        <div class="flex flex-col items-center text-center mb-8">
+          <h2 class="text-3xl font-bold text-gray-800">Login to Your Account</h2>
+          <p class="text-gray-500 text-sm mt-2">Welcome back! Please enter your credentials.</p>
+        </div>
+        
+        {% if error %}
+        <div class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm mb-6">
+          <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <form method="POST" class="space-y-6">
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+            <input 
+              type="text" 
+              name="username" 
+              id="username"
+              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              required 
+            />
+          </div>
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <input 
+              type="password" 
+              name="password" 
+              id="password"
+              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              required 
+            />
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center">
+              <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+              <label for="remember-me" class="ml-2 block text-gray-900">Remember me</label>
+            </div>
+            <a href="#" class="font-medium text-blue-600 hover:text-blue-500">Forgot password?</a>
+          </div>
+          <div>
+            <button 
+              type="submit" 
+              class="w-full py-3 px-4 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-lg"
+            >
+              Login
+            </button>
+          </div>
+        </form>
+        <div class="mt-8 text-center text-sm text-gray-500">
+          Not a member? 
+          <a href="#" class="font-medium text-blue-600 hover:text-blue-500">
+            Create an account
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
