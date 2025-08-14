@@ -325,10 +325,6 @@ def check_authentication():
 def home():
     return redirect(url_for('dashboard'))
 
-@app.route('/dashboard')
-def dashboard():
-    return render_template('dashboard.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user' in session:
